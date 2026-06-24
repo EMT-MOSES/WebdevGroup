@@ -1,16 +1,39 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
-function AdminDashboard({ users, bookings, reviews }) {
+function AdminDashboard({ users = [], bookings = [], reviews = [] }) {
   const [usersData, setUsersData] = useState(users);
 
+  // Toggle user status
   const toggleStatus = (id) => {
     setUsersData((prev) =>
-      prev.map((user) => (user.id === id ? { ...user, status: user.status === 'Active' ? 'Pending' : 'Active' } : user))
+      prev.map((user) =>
+        user.id === id
+          ? {
+              ...user,
+              status: user.status === 'Active' ? 'Pending' : 'Active',
+            }
+          : user
+      )
     );
   };
 
+  // Derived stats (memoized for performance)
+  const stats = useMemo(() => {
+    const activeUsers = usersData.filter(
+      (user) => user.status === 'Active'
+    ).length;
+
+    return {
+      activeUsers,
+      totalUsers: usersData.length,
+      bookings: bookings.length,
+      reviews: reviews.length,
+    };
+  }, [usersData, bookings, reviews]);
+
   return (
     <section className="page-card">
+      {/* Header */}
       <div className="section-heading">
         <div>
           <p className="eyebrow">Administration</p>
@@ -18,35 +41,35 @@ function AdminDashboard({ users, bookings, reviews }) {
         </div>
       </div>
 
+      {/* Stats */}
       <div className="stat-grid">
-        <article className="stat-card">
-          <h3>Active users</h3>
-          <p>{usersData.filter((user) => user.status === 'Active').length}</p>
-        </article>
-        <article className="stat-card">
-          <h3>Bookings</h3>
-          <p>{bookings.length}</p>
-        </article>
-        <article className="stat-card">
-          <h3>Reviews</h3>
-          <p>{reviews.length}</p>
-        </article>
+        <StatCard title="Active users" value={stats.activeUsers} />
+        <StatCard title="Total users" value={stats.totalUsers} />
+        <StatCard title="Bookings" value={stats.bookings} />
+        <StatCard title="Reviews" value={stats.reviews} />
       </div>
 
       <div className="dashboard-grid">
+        {/* User Management */}
         <article className="card">
           <h3>User management</h3>
-          <ul className="list-card">
-            {usersData.map((user) => (
-              <li key={user.id}>
-                {user.name} — {user.role} ({user.status})
-                <button className="small-btn" onClick={() => toggleStatus(user.id)}>
-                  Toggle status
-                </button>
-              </li>
-            ))}
-          </ul>
+
+          {usersData.length === 0 ? (
+            <p>No users available.</p>
+          ) : (
+            <ul className="list-card">
+              {usersData.map((user) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  onToggle={toggleStatus}
+                />
+              ))}
+            </ul>
+          )}
         </article>
+
+        {/* Notes */}
         <article className="card">
           <h3>Platform notes</h3>
           <p>Featured listings can be promoted from the admin console.</p>
@@ -54,6 +77,38 @@ function AdminDashboard({ users, bookings, reviews }) {
         </article>
       </div>
     </section>
+  );
+}
+
+/* ✅ Reusable components */
+
+function StatCard({ title, value }) {
+  return (
+    <article className="stat-card">
+      <h3>{title}</h3>
+      <p>{value}</p>
+    </article>
+  );
+}
+
+function UserRow({ user, onToggle }) {
+  return (
+    <li className="user-row">
+      <span>
+        {user.name} — {user.role}
+      </span>
+
+      <span className={`status ${user.status.toLowerCase()}`}>
+        {user.status}
+      </span>
+
+      <button
+        className="small-btn"
+        onClick={() => onToggle(user.id)}
+      >
+        Toggle
+      </button>
+    </li>
   );
 }
 

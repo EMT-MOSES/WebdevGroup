@@ -1,100 +1,190 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
-function BookingAndEvents({ artists, venues, events }) {
+function BookingAndEvents({ artists = [], venues = [], events = [] }) {
   const [step, setStep] = useState(1);
   const [selectionType, setSelectionType] = useState('artist');
-  const [selectedId, setSelectedId] = useState(artists[0].id);
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('M-Pesa');
+
+  const [selectedId, setSelectedId] = useState(
+    artists[0]?.id || venues[0]?.id || null
+  );
+
+  const [form, setForm] = useState({
+    eventTitle: '',
+    eventDate: '',
+    paymentMethod: 'M-Pesa',
+  });
+
   const [confirmed, setConfirmed] = useState(false);
 
-  const options = selectionType === 'artist' ? artists : venues;
-  const selectedItem = options.find((item) => item.id === selectedId) || options[0];
+  // Memoized options
+  const options = useMemo(
+    () => (selectionType === 'artist' ? artists : venues),
+    [selectionType, artists, venues]
+  );
 
+  const selectedItem = useMemo(
+    () => options.find((item) => item.id === selectedId) || options[0],
+    [options, selectedId]
+  );
+
+  // Step navigation
   const nextStep = () => setStep((prev) => Math.min(prev + 1, 3));
   const previousStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   const confirmBooking = () => {
     setConfirmed(true);
-    setStep(3);
+  };
+
+  // Handle form changes
+  const handleChange = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
     <section className="page-card">
+      {/* Header */}
       <div className="section-heading">
         <div>
           <p className="eyebrow">Booking & Events</p>
           <h2>Plan a booking in three steps</h2>
         </div>
+
         <div className="stepper">
-          <span className={step >= 1 ? 'active-step' : ''}>1</span>
-          <span className={step >= 2 ? 'active-step' : ''}>2</span>
-          <span className={step >= 3 ? 'active-step' : ''}>3</span>
+          {[1, 2, 3].map((num) => (
+            <span key={num} className={step >= num ? 'active-step' : ''}>
+              {num}
+            </span>
+          ))}
         </div>
       </div>
 
+      {/* STEP 1 */}
       {step === 1 && (
         <div>
           <p>Select the kind of partner you want to book.</p>
+
           <div className="nav-pills">
-            <button className={selectionType === 'artist' ? 'active' : ''} onClick={() => setSelectionType('artist')}>
-              Artist
-            </button>
-            <button className={selectionType === 'venue' ? 'active' : ''} onClick={() => setSelectionType('venue')}>
-              Venue
-            </button>
+            {['artist', 'venue'].map((type) => (
+              <button
+                key={type}
+                className={selectionType === type ? 'active' : ''}
+                onClick={() => {
+                  setSelectionType(type);
+                  setSelectedId(null);
+                }}
+              >
+                {type === 'artist' ? 'Artist' : 'Venue'}
+              </button>
+            ))}
           </div>
 
           <div className="cards">
             {options.map((item) => (
-              <button key={item.id} className={`choice-card ${selectedId === item.id ? 'selected' : ''}`} onClick={() => setSelectedId(item.id)}>
+              <button
+                key={item.id}
+                className={`choice-card ${
+                  selectedId === item.id ? 'selected' : ''
+                }`}
+                onClick={() => setSelectedId(item.id)}
+              >
                 <h3>{item.name}</h3>
                 <p>{item.location}</p>
-                {item.capacity ? <p>Capacity: {item.capacity}</p> : <p>{item.genre}</p>}
+                <p>
+                  {item.capacity
+                    ? `Capacity: ${item.capacity}`
+                    : item.genre}
+                </p>
               </button>
             ))}
           </div>
-          <button onClick={nextStep}>Continue</button>
+
+          <button disabled={!selectedId} onClick={nextStep}>
+            Continue
+          </button>
         </div>
       )}
 
-      {step === 2 && (
+      {/* STEP 2 */}
+      {step === 2 && selectedItem && (
         <div>
           <p>Book {selectedItem.name} for an upcoming event.</p>
+
           <div className="form-card vertical">
-            <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} placeholder="Event name" />
-            <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+            <input
+              value={form.eventTitle}
+              onChange={(e) =>
+                handleChange('eventTitle', e.target.value)
+              }
+              placeholder="Event name"
+            />
+
+            <input
+              type="date"
+              value={form.eventDate}
+              onChange={(e) =>
+                handleChange('eventDate', e.target.value)
+              }
+            />
+
+            <select
+              value={form.paymentMethod}
+              onChange={(e) =>
+                handleChange('paymentMethod', e.target.value)
+              }
+            >
               <option value="M-Pesa">M-Pesa</option>
               <option value="Cash">Cash</option>
               <option value="Bank transfer">Bank transfer</option>
             </select>
           </div>
+
           <div className="button-row">
             <button onClick={previousStep}>Back</button>
-            <button onClick={nextStep}>Review</button>
+            <button
+              onClick={nextStep}
+              disabled={!form.eventDate}
+            >
+              Review
+            </button>
           </div>
         </div>
       )}
 
-      {step === 3 && (
+      {/* STEP 3 */}
+      {step === 3 && selectedItem && (
         <div>
           <h3>Booking summary</h3>
+
           <div className="card">
             <p><strong>Partner:</strong> {selectedItem.name}</p>
-            <p><strong>Event:</strong> {eventTitle || 'Community event'}</p>
-            <p><strong>Date:</strong> {eventDate || 'TBD'}</p>
-            <p><strong>Payment:</strong> {paymentMethod}</p>
+            <p>
+              <strong>Event:</strong>{' '}
+              {form.eventTitle || 'Community event'}
+            </p>
+            <p>
+              <strong>Date:</strong> {form.eventDate || 'TBD'}
+            </p>
+            <p>
+              <strong>Payment:</strong> {form.paymentMethod}
+            </p>
           </div>
+
           <div className="button-row">
             <button onClick={previousStep}>Back</button>
-            <button onClick={confirmBooking}>Confirm booking</button>
+            <button onClick={confirmBooking}>
+              Confirm booking
+            </button>
           </div>
-          {confirmed && <p className="success-note">Booking request submitted successfully.</p>}
+
+          {confirmed && (
+            <p className="success-note">
+              Booking request submitted successfully.
+            </p>
+          )}
         </div>
       )}
 
+      {/* EVENTS LIST */}
       <div className="cards">
         {events.map((event) => (
           <article className="card" key={event.id}>
