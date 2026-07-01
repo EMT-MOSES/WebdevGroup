@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 
 function AdminDashboard({ users = [], bookings = [], reviews = [] }) {
   const [usersData, setUsersData] = useState(users);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
 
   // Toggle user status
   const toggleStatus = (id) => {
@@ -17,14 +19,29 @@ function AdminDashboard({ users = [], bookings = [], reviews = [] }) {
     );
   };
 
-  // Derived stats (memoized for performance)
-  const stats = useMemo(() => {
-    const activeUsers = usersData.filter(
-      (user) => user.status === 'Active'
-    ).length;
+  //  Delete user
+  const deleteUser = (id) => {
+    setUsersData((prev) => prev.filter((user) => user.id !== id));
+  };
 
+  //  Filter + Search logic
+  const filteredUsers = useMemo(() => {
+    return usersData.filter((user) => {
+      const matchesSearch =
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === 'All' || user.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [usersData, searchTerm, statusFilter]);
+
+  // Stats
+  const stats = useMemo(() => {
     return {
-      activeUsers,
+      activeUsers: usersData.filter((u) => u.status === 'Active').length,
       totalUsers: usersData.length,
       bookings: bookings.length,
       reviews: reviews.length,
@@ -33,7 +50,6 @@ function AdminDashboard({ users = [], bookings = [], reviews = [] }) {
 
   return (
     <section className="page-card">
-      {/* Header */}
       <div className="section-heading">
         <div>
           <p className="eyebrow">Administration</p>
@@ -50,26 +66,45 @@ function AdminDashboard({ users = [], bookings = [], reviews = [] }) {
       </div>
 
       <div className="dashboard-grid">
-        {/* User Management */}
         <article className="card">
           <h3>User management</h3>
 
-          {usersData.length === 0 ? (
-            <p>No users available.</p>
+          {/* Search + Filter Controls */}
+          <div className="controls">
+            <input
+              type="text"
+              placeholder="Search by name or role..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="All">All</option>
+              <option value="Active">Active</option>
+              <option value="Pending">Pending</option>
+            </select>
+          </div>
+
+          {/*  User List */}
+          {filteredUsers.length === 0 ? (
+            <p>No matching users.</p>
           ) : (
             <ul className="list-card">
-              {usersData.map((user) => (
+              {filteredUsers.map((user) => (
                 <UserRow
                   key={user.id}
                   user={user}
                   onToggle={toggleStatus}
+                  onDelete={deleteUser}
                 />
               ))}
             </ul>
           )}
         </article>
 
-        {/* Notes */}
         <article className="card">
           <h3>Platform notes</h3>
           <p>Featured listings can be promoted from the admin console.</p>
@@ -80,7 +115,7 @@ function AdminDashboard({ users = [], bookings = [], reviews = [] }) {
   );
 }
 
-/* ✅ Reusable components */
+/* Components */
 
 function StatCard({ title, value }) {
   return (
@@ -91,25 +126,28 @@ function StatCard({ title, value }) {
   );
 }
 
-function UserRow({ user, onToggle }) {
+function UserRow({ user, onToggle, onDelete }) {
   return (
     <li className="user-row">
-      <span>
-        {user.name} — {user.role}
-      </span>
+      <div>
+        <strong>{user.name}</strong> — {user.role}
+        <span className={`status ${user.status.toLowerCase()}`}>
+          {user.status}
+        </span>
+      </div>
 
-      <span className={`status ${user.status.toLowerCase()}`}>
-        {user.status}
-      </span>
-
-      <button
-        className="small-btn"
-        onClick={() => onToggle(user.id)}
-      >
-        Toggle
-      </button>
+      <div className="actions">
+        <button onClick={() => onToggle(user.id)}>Toggle</button>
+        <button
+          className="danger"
+          onClick={() => onDelete(user.id)}
+        >
+          Delete
+        </button>
+      </div>
     </li>
   );
 }
 
 export default AdminDashboard;
+``

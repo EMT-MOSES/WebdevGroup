@@ -1,32 +1,62 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
-function ReviewsAndBackend({ reviews, artists, venues }) {
+function ReviewsAndBackend({ reviews = [], artists = [], venues = [] }) {
   const [reviewList, setReviewList] = useState(reviews);
-  const [author, setAuthor] = useState('');
-  const [text, setText] = useState('');
-  const [rating, setRating] = useState('5');
+  const [form, setForm] = useState({
+    author: '',
+    text: '',
+    rating: '5',
+  });
+  const [search, setSearch] = useState('');
 
+  // Handle input change
+  const handleChange = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // ✅ Add review
   const addReview = (e) => {
     e.preventDefault();
-    if (!author.trim() || !text.trim()) return;
 
-    setReviewList([
-      {
-        id: Date.now(),
-        author: author.trim(),
-        text: text.trim(),
-        rating: Number(rating),
-        target: 'New review',
-      },
-      ...reviewList,
-    ]);
-    setAuthor('');
-    setText('');
-    setRating('5');
+    if (!form.author.trim() || !form.text.trim()) return;
+
+    const newReview = {
+      id: Date.now(),
+      author: form.author.trim(),
+      text: form.text.trim(),
+      rating: Number(form.rating),
+      target: 'New review',
+      date: new Date().toLocaleDateString(),
+    };
+
+    setReviewList((prev) => [newReview, ...prev]);
+
+    setForm({
+      author: '',
+      text: '',
+      rating: '5',
+    });
   };
+
+  // ✅ Delete review
+  const deleteReview = (id) => {
+    if (window.confirm('Delete this review?')) {
+      setReviewList((prev) => prev.filter((r) => r.id !== id));
+    }
+  };
+
+  // ✅ Filter reviews (search by author or text)
+  const filteredReviews = useMemo(() => {
+    return reviewList.filter(
+      (r) =>
+        r.author.toLowerCase().includes(search.toLowerCase()) ||
+        r.text.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [reviewList, search]);
 
   return (
     <section className="page-card">
+      {/* Header */}
       <div className="section-heading">
         <div>
           <p className="eyebrow">Reviews & Backend</p>
@@ -34,44 +64,115 @@ function ReviewsAndBackend({ reviews, artists, venues }) {
         </div>
       </div>
 
+      {/* Featured */}
       <div className="dashboard-grid">
-        <article className="card">
-          <h3>Featured artists</h3>
+        <InfoCard title="Featured artists">
           {artists.map((artist) => (
-            <p key={artist.id}>{artist.name} — {artist.rating}/5</p>
+            <p key={artist.id}>
+              {artist.name} — ⭐ {artist.rating}/5
+            </p>
           ))}
-        </article>
-        <article className="card">
-          <h3>Featured venues</h3>
+        </InfoCard>
+
+        <InfoCard title="Featured venues">
           {venues.map((venue) => (
-            <p key={venue.id}>{venue.name} — {venue.capacity} seats</p>
+            <p key={venue.id}>
+              {venue.name} — {venue.capacity} seats
+            </p>
           ))}
-        </article>
+        </InfoCard>
       </div>
 
+      {/* Add Review */}
       <form onSubmit={addReview} className="form-card vertical">
-        <input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Your name" />
-        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a review" rows="3" />
-        <select value={rating} onChange={(e) => setRating(e.target.value)}>
-          <option value="5">5 stars</option>
-          <option value="4">4 stars</option>
-          <option value="3">3 stars</option>
-          <option value="2">2 stars</option>
-          <option value="1">1 star</option>
+        <input
+          value={form.author}
+          onChange={(e) => handleChange('author', e.target.value)}
+          placeholder="Your name"
+        />
+
+        <textarea
+          value={form.text}
+          onChange={(e) => handleChange('text', e.target.value)}
+          placeholder="Write a review"
+          rows="3"
+        />
+
+        <select
+          value={form.rating}
+          onChange={(e) => handleChange('rating', e.target.value)}
+        >
+          {[5, 4, 3, 2, 1].map((r) => (
+            <option key={r} value={r}>
+              {r} star{r > 1 ? 's' : ''}
+            </option>
+          ))}
         </select>
-        <button type="submit">Submit review</button>
+
+        <button type="submit" disabled={!form.author || !form.text}>
+          Submit review
+        </button>
       </form>
 
+      {/* ✅ Search */}
+      <input
+        className="search-input"
+        placeholder="Search reviews..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {/* Reviews List */}
       <div className="cards">
-        {reviewList.map((review) => (
-          <article className="card" key={review.id}>
-            <h3>{review.author}</h3>
-            <p>{review.text}</p>
-            <p>{'★'.repeat(review.rating)} {review.target}</p>
-          </article>
-        ))}
+        {filteredReviews.length === 0 ? (
+          <p>No reviews found.</p>
+        ) : (
+          filteredReviews.map((review) => (
+            <ReviewCard
+              key={review.id}
+              review={review}
+              onDelete={deleteReview}
+            />
+          ))
+        )}
       </div>
     </section>
+  );
+}
+
+/* ✅ Components */
+
+function InfoCard({ title, children }) {
+  return (
+    <article className="card">
+      <h3>{title}</h3>
+      {children}
+    </article>
+  );
+}
+
+function ReviewCard({ review, onDelete }) {
+  return (
+    <article className="card review-card">
+      <div className="review-header">
+        <h3>{review.author}</h3>
+        <span className="rating">
+          {'★'.repeat(review.rating)}
+        </span>
+      </div>
+
+      <p>{review.text}</p>
+
+      <div className="review-footer">
+        <small>{review.date}</small>
+        <button
+          className="danger small-btn"
+          onClick={() => onDelete(review.id)}
+        >
+          Delete
+        </button>
+      </div>
+    </article>
   );
 }
 
